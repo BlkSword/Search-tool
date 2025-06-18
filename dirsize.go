@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-// 换算单位
+// 判断换算
 func formatSize(bytes int64) string {
 	if bytes < 1024 {
 		return fmt.Sprintf("%d B", bytes)
@@ -134,7 +134,7 @@ func main() {
 		if dir == rootDir {
 			continue // 跳过根目录自身
 		}
-		if filepath.Dir(dir) == rootDir { // 仅收集直接子项
+		if filepath.Dir(dir) == rootDir {
 			relPath, _ := filepath.Rel(rootDir, dir)
 			items = append(items, Item{
 				Path:  relPath,
@@ -146,7 +146,7 @@ func main() {
 
 	// 收集直接子文件信息
 	for file, size := range fileSizes {
-		if filepath.Dir(file) == rootDir { // 仅收集直接子项
+		if filepath.Dir(file) == rootDir {
 			relPath, _ := filepath.Rel(rootDir, file)
 			items = append(items, Item{
 				Path:  relPath,

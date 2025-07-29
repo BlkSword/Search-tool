@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .scan-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 50px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .scan-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+
+        .result-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .file-item {
+            border-left: 4px solid #667eea;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            padding: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .file-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .dir-item {
+            border-left: 4px solid #28a745;
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        .stats-card {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+        }
+
+        .error-alert {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="main-container p-5">
+                    <div class="text-center mb-5">
+                        <h1 class="display-4 fw-bold text-primary mb-3">
+                            <i class="bi bi-folder2-open"></i>
+                            目录大小检索工具
+                        </h1>
+                        <p class="lead text-muted">快速分析目录结构，查看文件和文件夹大小分布</p>
+                    </div>
+
+                    <!-- 输入表单 -->
+                    <div class="row justify-content-center mb-5">
+                        <div class="col-md-8">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body p-4">
+                                    <form id="scanForm">
+                                        <div class="mb-3">
+                                            <label for="directoryPath" class="form-label fw-bold">
+                                                <i class="bi bi-folder"></i> 目录路径
+                                            </label>
+                                            <input type="text" class="form-control form-control-lg" id="directoryPath"
+                                                placeholder="请输入要扫描的目录路径，例如: C:\Users\YourName" required>
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle"></i>
+                                                支持绝对路径
+                                            </div>
+                                        </div>
+                                        <div class="text-center">
+                                            <button type="submit" class="btn scan-btn btn-lg text-white" id="scanBtn">
+                                                <i class="bi bi-search"></i>
+                                                开始扫描
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 错误提示 -->
+                    <div class="alert alert-danger error-alert" id="errorAlert" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span id="errorMessage"></span>
+                    </div>
+
+                    <!-- 加载状态 -->
+                    <div class="text-center loading" id="loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">扫描中...</span>
+                        </div>
+                        <p class="mt-3 text-muted">正在扫描目录，请稍候...</p>
+                    </div>
+
+                    <!-- 结果展示 -->
+                    <div id="results" style="display: none;">
+                        <!-- 统计信息 -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="stats-card p-3 text-center">
+                                    <h5><i class="bi bi-folder"></i> 扫描目录</h5>
+                                    <p class="mb-0" id="scanPath"></p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stats-card p-3 text-center">
+                                    <h5><i class="bi bi-hdd"></i> 总大小</h5>
+                                    <p class="mb-0" id="totalSize"></p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stats-card p-3 text-center">
+                                    <h5><i class="bi bi-clock"></i> 扫描时间</h5>
+                                    <p class="mb-0" id="scanTime"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 文件列表 -->
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-list-ul"></i>
+                                    文件和文件夹列表
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="fileList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('scanForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const path = document.getElementById('directoryPath').value.trim();
+            if (!path) {
+                showError('请输入目录路径');
+                return;
+            }
+
+            // 显示加载状态
+            showLoading(true);
+            hideError();
+            hideResults();
+
+            try {
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ path: path })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayResults(data);
+                } else {
+                    showError(data.error || '扫描失败');
+                }
+            } catch (error) {
+                showError('网络错误: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const scanBtn = document.getElementById('scanBtn');
+
+            if (show) {
+                loading.style.display = 'block';
+                scanBtn.disabled = true;
+                scanBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>扫描中...';
+            } else {
+                loading.style.display = 'none';
+                scanBtn.disabled = false;
+                scanBtn.innerHTML = '<i class="bi bi-search"></i> 开始扫描';
+            }
+        }
+
+        function showError(message) {
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorAlert.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorAlert').style.display = 'none';
+        }
+
+        function hideResults() {
+            document.getElementById('results').style.display = 'none';
+        }
+
+        function displayResults(data) {
+            // 更新统计信息
+            document.getElementById('scanPath').textContent = data.path;
+            document.getElementById('totalSize').textContent = data.totalSizeFormatted;
+            document.getElementById('scanTime').textContent = data.scanTime.toFixed(2) + ' 秒';
+
+            // 更新文件列表
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+
+            if (data.items.length === 0) {
+                fileList.innerHTML = '<p class="text-muted text-center">该目录为空</p>';
+            } else {
+                data.items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = `file-item ${item.isDir ? 'dir-item' : ''}`;
+
+                    const icon = item.isDir ? 'bi-folder-fill' : 'bi-file-earmark';
+                    const type = item.isDir ? '文件夹' : '文件';
+
+                    itemDiv.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi ${icon} me-2"></i>
+                                <span class="fw-bold">${item.path}</span>
+                                <span class="badge bg-secondary ms-2">${type}</span>
+                            </div>
+                            <div class="text-end">
+                                <span class="fw-bold text-primary">${item.sizeFormatted}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    fileList.appendChild(itemDiv);
+                });
+            }
+
+            // 显示结果
+            document.getElementById('results').style.display = 'block';
+        }
+    </script>
+</body>
+
+</html>

@@ -11,29 +11,7 @@ import (
 	"sync"
 )
 
-// 判断换算
-func formatSize(bytes int64) string {
-	if bytes < 1024 {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	kb := float64(bytes) / 1024
-	if kb < 1024 {
-		return fmt.Sprintf("%.1f KB", kb)
-	}
-	mb := kb / 1024
-	if mb < 1024 {
-		return fmt.Sprintf("%.1f MB", mb)
-	}
-	gb := mb / 1024
-	return fmt.Sprintf("%.1f GB", gb)
-}
-
-type FileTask struct {
-	path string
-	size int64
-}
-
-func main() {
+func scanDirectoryCLI() {
 	// 获取用户输入目录路径
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter directory path: ")
@@ -82,7 +60,7 @@ func main() {
 						break
 					}
 					parentDir := filepath.Dir(currentDir)
-					if parentDir == currentDir { // 防止无限循环
+					if parentDir == currentDir {
 						break
 					}
 					currentDir = parentDir
@@ -95,7 +73,7 @@ func main() {
 	// 遍历目录树
 	err = filepath.WalkDir(rootDir, func(currentPath string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // 跳过无法访问的文件
+			return nil
 		}
 
 		if d.IsDir() {
@@ -109,7 +87,7 @@ func main() {
 			// 处理文件大小统计
 			info, err := d.Info()
 			if err != nil {
-				return nil // 跳过无法读取的文件
+				return nil
 			}
 			size := info.Size()
 			fileSizes[currentPath] = size
@@ -132,7 +110,7 @@ func main() {
 	// 收集直接子目录信息
 	for dir, size := range dirSizes {
 		if dir == rootDir {
-			continue // 跳过根目录自身
+			continue
 		}
 		if filepath.Dir(dir) == rootDir {
 			relPath, _ := filepath.Rel(rootDir, dir)

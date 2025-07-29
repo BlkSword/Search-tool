@@ -12,7 +12,7 @@
 ## 使用方式
 
 启动Web服务器：
-双击searchtool.exe，启动服务器
+双击searchtool.exe，启动服务端
 
 然后在浏览器中访问：`http://localhost:8080`
 

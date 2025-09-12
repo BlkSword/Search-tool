@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-func scanDirectoryCLI() {
+func ScanDirectoryCLI() {
 	// 获取用户输入目录路径
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter directory path: ")

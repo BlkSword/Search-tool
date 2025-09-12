@@ -81,6 +81,15 @@
         .error-alert {
             display: none;
         }
+
+        .history-item {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 
@@ -118,6 +127,10 @@
                                             <button type="submit" class="btn scan-btn btn-lg text-white" id="scanBtn">
                                                 <i class="bi bi-search"></i>
                                                 开始扫描
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary ms-2" id="historyBtn">
+                                                <i class="bi bi-clock-history"></i>
+                                                历史记录
                                             </button>
                                         </div>
                                     </form>
@@ -182,8 +195,39 @@
         </div>
     </div>
 
+    <!-- 历史记录弹窗 -->
+    <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-clock-history"></i>
+                        历史记录
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="historyList">
+                        <p class="text-muted text-center mb-0">暂无历史记录</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-outline-secondary" id="refreshHistory">
+                        <i class="bi bi-arrow-repeat"></i> 刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 页面加载完成后获取历史记录
+        document.addEventListener('DOMContentLoaded', function () {
+            loadHistory();
+        });
+
         document.getElementById('scanForm').addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -211,6 +255,8 @@
 
                 if (response.ok) {
                     displayResults(data);
+                    // 扫描成功后刷新历史记录
+                    loadHistory();
                 } else {
                     showError(data.error || '扫描失败');
                 }
@@ -220,6 +266,113 @@
                 showLoading(false);
             }
         });
+
+        // 历史记录按钮事件
+        document.getElementById('historyBtn').addEventListener('click', function () {
+            const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+            historyModal.show();
+        });
+
+        // 刷新历史记录按钮事件
+        document.getElementById('refreshHistory').addEventListener('click', loadHistory);
+
+        // 加载历史记录
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history');
+                const history = await response.json();
+
+                const historyList = document.getElementById('historyList');
+
+                if (history.length === 0) {
+                    historyList.innerHTML = '<p class="text-muted text-center mb-0">暂无历史记录</p>';
+                    return;
+                }
+
+                historyList.innerHTML = '';
+                history.forEach(item => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item p-3 border-bottom';
+                    historyItem.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-folder"></i>
+                                <span class="ms-2">${item.path}</span>
+                            </div>
+                            <div class="text-end">
+                                <div>${item.sizeFormat}</div>
+                                <small class="text-muted">${formatTime(item.scanTime)}</small>
+                            </div>
+                        </div>
+                    `;
+
+                    // 点击历史记录项时，展示已保存的结果
+                    historyItem.addEventListener('click', function () {
+                        showHistoryItem(item.path);
+                    });
+
+                    historyList.appendChild(historyItem);
+                });
+            } catch (error) {
+                console.error('加载历史记录失败:', error);
+            }
+        }
+
+        // 展示历史记录项的详情
+        async function showHistoryItem(path) {
+            // 隐藏模态框
+            const historyModal = bootstrap.Modal.getInstance(document.getElementById('historyModal'));
+            if (historyModal) {
+                historyModal.hide();
+            }
+
+            // 显示加载状态
+            showLoading(true);
+            hideError();
+            hideResults();
+
+            try {
+                const response = await fetch('/api/history-item', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ path: path })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayResults(data);
+                } else {
+                    showError(data.error || '获取历史记录失败');
+                }
+            } catch (error) {
+                showError('网络错误: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 格式化时间显示
+        function formatTime(timeString) {
+            const date = new Date(timeString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+            if (diffDays > 0) {
+                return `${diffDays}天前`;
+            } else if (diffHours > 0) {
+                return `${diffHours}小时前`;
+            } else if (diffMinutes > 0) {
+                return `${diffMinutes}分钟前`;
+            } else {
+                return '刚刚';
+            }
+        }
 
         function showLoading(show) {
             const loading = document.getElementById('loading');

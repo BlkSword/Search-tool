@@ -50,6 +50,25 @@ type ScanResult struct {
 	Path               string  `json:"path"`
 }
 
+// 历史记录项
+type HistoryItem struct {
+	Path       string    `json:"path"`
+	ScanTime   time.Time `json:"scanTime"`
+	TotalSize  int64     `json:"totalSize"`
+	SizeFormat string    `json:"sizeFormat"`
+	Items      []Item    `json:"items"` // 添加items字段来存储扫描结果
+}
+
+// 历史记录存储
+var (
+	history      []HistoryItem
+	historyMutex sync.RWMutex
+)
+
+func init() {
+	history = make([]HistoryItem, 0)
+}
+
 func scanDirectory(path string) (*ScanResult, error) {
 	startTime := time.Now()
 
@@ -177,6 +196,22 @@ func scanDirectory(path string) (*ScanResult, error) {
 
 	scanTime := time.Since(startTime).Seconds()
 
+	// 添加到历史记录
+	historyMutex.Lock()
+	history = append(history, HistoryItem{
+		Path:       path,
+		ScanTime:   time.Now(),
+		TotalSize:  totalSize,
+		SizeFormat: formatSize(totalSize),
+		Items:      items, // 保存items到历史记录
+	})
+
+	// 保持历史记录在合理范围内（最多保存50条）
+	if len(history) > 50 {
+		history = history[1:]
+	}
+	historyMutex.Unlock()
+
 	return &ScanResult{
 		Items:              items,
 		TotalSize:          totalSize,
@@ -220,6 +255,53 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, result)
+	})
+
+	// 获取历史记录路由
+	r.GET("/api/history", func(c *gin.Context) {
+		historyMutex.RLock()
+		defer historyMutex.RUnlock()
+
+		// 返回历史记录的副本，按时间倒序排列（最新的在前）
+		historyCopy := make([]HistoryItem, len(history))
+		for i, item := range history {
+			historyCopy[len(history)-1-i] = item
+		}
+
+		c.JSON(http.StatusOK, historyCopy)
+	})
+
+	// 获取历史记录详情路由
+	r.POST("/api/history-item", func(c *gin.Context) {
+		var req struct {
+			Path string `json:"path" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请提供有效的目录路径"})
+			return
+		}
+
+		historyMutex.RLock()
+		defer historyMutex.RUnlock()
+
+		// 查找匹配的历史记录
+		for i := len(history) - 1; i >= 0; i-- {
+			if history[i].Path == req.Path {
+				// 构造扫描结果
+				result := &ScanResult{
+					Items:              history[i].Items,
+					TotalSize:          history[i].TotalSize,
+					TotalSizeFormatted: history[i].SizeFormat,
+					ScanTime:           0, // 历史记录没有扫描时间
+					Path:               history[i].Path,
+				}
+				c.JSON(http.StatusOK, result)
+				return
+			}
+		}
+
+		c.JSON(http.StatusNotFound, gin.H{"error": "未找到该历史记录"})
 	})
 
 	// 启动服务器

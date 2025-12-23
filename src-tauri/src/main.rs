@@ -23,6 +23,7 @@ async fn main() {
             commands::scan_directory,
             commands::get_history,
             commands::get_history_item,
+            commands::clear_history,
             commands::open_in_explorer,
         ])
         .run(tauri::generate_context!())

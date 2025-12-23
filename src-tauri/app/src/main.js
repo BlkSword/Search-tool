@@ -53,6 +53,7 @@ document.getElementById('browseBtn').addEventListener('click', async function() 
 });
 
 document.getElementById('refreshHistory').addEventListener('click', loadHistory);
+document.getElementById('clearHistory').addEventListener('click', clearHistory);
 
 document.querySelectorAll('.header-col').forEach(header => {
     header.addEventListener('click', function() {
@@ -457,6 +458,23 @@ async function loadHistory() {
         });
     } catch (error) {
         console.error('加载历史记录失败:', error);
+    }
+}
+
+// 清除历史记录
+async function clearHistory() {
+    if (!confirm('确定要清除所有历史记录吗？')) {
+        return;
+    }
+
+    showLoading(true);
+    try {
+        await invoke('clear_history');
+        document.getElementById('historyList').innerHTML = '<p class="text-muted text-center mb-0">暂无历史记录</p>';
+    } catch (error) {
+        showError('清除历史记录失败: ' + error);
+    } finally {
+        showLoading(false);
     }
 }
 

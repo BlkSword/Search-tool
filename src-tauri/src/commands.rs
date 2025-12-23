@@ -17,22 +17,25 @@ pub async fn scan_directory(
 
     match scan::scan_directory(path, force_refresh).await {
         Ok(mut result) => {
-            // 添加到历史记录
-            let history_item = HistoryItem {
-                path: path.to_string(),
-                scan_time: Utc::now(),
-                total_size: result.total_size,
-                size_format: result.total_size_formatted.clone(),
-                items: result.items.clone(),
-            };
+            // 只在非缓存命中时添加到历史记录
+            if result.scan_time > 0.0 {
+                // 添加到历史记录
+                let history_item = HistoryItem {
+                    path: path.to_string(),
+                    scan_time: Utc::now(),
+                    total_size: result.total_size,
+                    size_format: result.total_size_formatted.clone(),
+                    items: result.items.clone(),
+                };
 
-            // 保存到历史记录
-            let mut history = state.history.lock().unwrap();
-            history.push(history_item);
+                // 保存到历史记录
+                let mut history = state.history.lock().unwrap();
+                history.push(history_item);
 
-            // 保持历史记录在合理范围内（最多保存50条）
-            if history.len() > 50 {
-                history.remove(0);
+                // 保持历史记录在合理范围内（最多保存20条，减少内存占用）
+                if history.len() > 20 {
+                    history.remove(0);
+                }
             }
 
             // 更新结果中的路径为规范路径
@@ -69,6 +72,13 @@ pub fn get_history_item(path: String, state: State<'_, AppState>) -> Option<Scan
     }
 
     None
+}
+
+#[command]
+pub fn clear_history(state: State<'_, AppState>) -> Result<(), String> {
+    let mut history = state.history.lock().unwrap();
+    history.clear();
+    Ok(())
 }
 
 #[command]
